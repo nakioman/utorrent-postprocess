@@ -11,13 +11,14 @@ namespace UtorrentPostProcess.Console
 {
     public class Program
     {
-        static readonly ILog Log = log4net.LogManager.GetLogger(typeof(Program));
-        static readonly UtorrentPostProcessConfigSection Config = UtorrentPostProcessConfigSection.GetConfig();
+        private static readonly ILog Log = log4net.LogManager.GetLogger(typeof(Program));
+        private static readonly UtorrentPostProcessConfigSection Config = UtorrentPostProcessConfigSection.GetConfig();
+        private static UTorrentClient _uTorrentClient;
 
         static void Main(string[] args)
         {
 
-            var uTorrentClient = new UTorrentClient(Config.UTorrent.Ip, Config.UTorrent.Port,
+            _uTorrentClient = new UTorrentClient(Config.UTorrent.Ip, Config.UTorrent.Port,
                 Config.UTorrent.Username, Config.UTorrent.Password);
 
             if (args.Length != 1)
@@ -28,7 +29,7 @@ namespace UtorrentPostProcess.Console
 
             try
             {
-                var torrents = uTorrentClient.GetList();
+                var torrents = _uTorrentClient.GetList();
                 if (torrents.Error != null)
                 {
                     Log.Error(torrents.Error.Message);
@@ -49,10 +50,10 @@ namespace UtorrentPostProcess.Console
                     Environment.Exit(-1);
                 }
 
-                var folder = CopyTorrentToTempFolder(torrent.Path);
+                var folder = CopyTorrentToTempFolder(torrent.Path, torrent.Hash);
                 if (Config.UTorrent.TorrentRatio == 0 || torrent.Ratio >= Config.UTorrent.TorrentRatio * 100)
                 {
-                    uTorrentClient.DeleteTorrent(torrent.Hash);
+                    _uTorrentClient.DeleteTorrent(torrent.Hash);
                 }
 
                 plugin.Run(folder);
@@ -67,7 +68,7 @@ namespace UtorrentPostProcess.Console
             Environment.Exit(0);
         }
 
-        private static string CopyTorrentToTempFolder(string torrentPath)
+        private static string CopyTorrentToTempFolder(string torrentPath, string hash)
         {
             var folder = String.Empty;
             try
@@ -76,13 +77,12 @@ namespace UtorrentPostProcess.Console
                 if (isDir)
                 {
                     folder = Path.Combine(Config.UTorrent.WorkingFolder, torrentPath.Split(Path.DirectorySeparatorChar).Last());
-                   CopyDir(torrentPath, folder);
                 }
                 else
                 {
                     folder = Config.UTorrent.WorkingFolder;
-                    File.Copy(torrentPath, folder);
                 }
+                CopyDir(torrentPath, folder, hash);
                 return folder;
             }
             catch (Exception ex)
@@ -93,21 +93,17 @@ namespace UtorrentPostProcess.Console
             return null;
         }
 
-        public static void CopyDir(string source, string target)
+        public static void CopyDir(string source, string target, string hash)
         {
             if (!Directory.Exists(target)) Directory.CreateDirectory(target);
-            string[] sysEntries = Directory.GetFileSystemEntries(source);
+            var files = _uTorrentClient.GetFiles(hash).Result.Files[hash];
 
-            foreach (string sysEntry in sysEntries)
+            foreach (var file in files)
             {
-                string fileName = Path.GetFileName(sysEntry);
-                string targetPath = Path.Combine(target, fileName);
-                if (Directory.Exists(sysEntry))
-                    CopyDir(sysEntry, targetPath);
-                else
-                {
-                    File.Copy(sysEntry, targetPath, true);
-                }
+                var subPath = file.Name.Replace(file.NameWithoutPath, "");
+                var subTarget = Path.Combine(target, subPath);
+                if (!Directory.Exists(subTarget)) Directory.CreateDirectory(subTarget);
+                File.Copy(Path.Combine(source, file.Name), Path.Combine(target, file.Name));
             }
         }
 

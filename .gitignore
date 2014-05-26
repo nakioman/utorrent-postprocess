@@ -1,0 +1,6 @@
+*.user
+UtorrentPostProcess.Console/bin/
+UtorrentPostProcess.Console/obj/
+*.suo
+*.log
+packages/
