@@ -61,13 +61,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Configuration\CouchPotatoConfigSection.cs" />
-    <Compile Include="Configuration\SickBeardConfigSection.cs" />
     <Compile Include="Configuration\UtorrentPostProcessConfigSection.cs" />
     <Compile Include="Configuration\UTorrentSettingElements.cs" />
-    <Compile Include="Plugins\CouchPotatoPlugin.cs" />
-    <Compile Include="Plugins\IPlugin.cs" />
-    <Compile Include="Plugins\SickBeardPlugin.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

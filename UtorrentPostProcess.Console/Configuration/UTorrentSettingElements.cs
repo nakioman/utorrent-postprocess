@@ -38,10 +38,16 @@ namespace UtorrentPostProcess.Console.Configuration
             get { return (int)this["torrentRatio"]; }
         }
 
-        [ConfigurationProperty("workingFolder", IsRequired = true)]
-        public string WorkingFolder
+        [ConfigurationProperty("tvfolder", IsRequired = true)]
+        public string TvDownloadFolder
         {
-            get { return (string)this["workingFolder"]; }
+            get { return (string)this["tvfolder"]; }
+        }
+
+        [ConfigurationProperty("moviesFolder", IsRequired = true)]
+        public string MoviesDownloadFolder
+        {
+            get { return (string)this["moviesFolder"]; }
         }
     }
 }

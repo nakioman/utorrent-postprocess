@@ -1,17 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using log4net;
 using UTorrent.Api;
 using UtorrentPostProcess.Console.Configuration;
-using UtorrentPostProcess.Console.Plugins;
 
 namespace UtorrentPostProcess.Console
 {
     public class Program
     {
-        private static readonly ILog Log = log4net.LogManager.GetLogger(typeof(Program));
+        private static readonly ILog Log = LogManager.GetLogger(typeof(Program));
         private static readonly UtorrentPostProcessConfigSection Config = UtorrentPostProcessConfigSection.GetConfig();
         private static UTorrentClient _uTorrentClient;
 
@@ -43,20 +41,23 @@ namespace UtorrentPostProcess.Console
                     Environment.Exit(-1);
                 }
 
-                var plugin = GetPlugin(torrent.Label);
-                if (plugin == null)
+                switch (torrent.Label)
                 {
-                    Log.ErrorFormat("There is no plugin for label {0}, associated to torrent with hash {1}", torrent.Label, torrent.Hash);
-                    Environment.Exit(-1);
+                    case "tv":
+                        CopyTorrentToFolder(torrent.Path, torrent.Hash, Config.UTorrent.TvDownloadFolder);
+                        if (Config.UTorrent.TorrentRatio == 0 || torrent.Ratio >= Config.UTorrent.TorrentRatio * 100)
+                        {
+                            _uTorrentClient.DeleteTorrent(torrent.Hash);
+                        }
+                        break;
+                    case "movies":
+                        CopyTorrentToFolder(torrent.Path, torrent.Hash, Config.UTorrent.MoviesDownloadFolder);
+                        if (Config.UTorrent.TorrentRatio == 0 || torrent.Ratio >= Config.UTorrent.TorrentRatio * 100)
+                        {
+                            _uTorrentClient.DeleteTorrent(torrent.Hash);
+                        }
+                        break;
                 }
-
-                var folder = CopyTorrentToTempFolder(torrent.Path, torrent.Hash);
-                if (Config.UTorrent.TorrentRatio == 0 || torrent.Ratio >= Config.UTorrent.TorrentRatio * 100)
-                {
-                    _uTorrentClient.DeleteTorrent(torrent.Hash);
-                }
-
-                plugin.Run(folder);
 
             }
             catch (ServerUnavailableException)
@@ -68,20 +69,15 @@ namespace UtorrentPostProcess.Console
             Environment.Exit(0);
         }
 
-        private static string CopyTorrentToTempFolder(string torrentPath, string hash)
+        private static string CopyTorrentToFolder(string torrentPath, string hash, string destinationFolder)
         {
             var folder = String.Empty;
             try
             {
                 var isDir = (File.GetAttributes(torrentPath) & FileAttributes.Directory) == FileAttributes.Directory;
-                if (isDir)
-                {
-                    folder = Path.Combine(Config.UTorrent.WorkingFolder, torrentPath.Split(Path.DirectorySeparatorChar).Last());
-                }
-                else
-                {
-                    folder = Config.UTorrent.WorkingFolder;
-                }
+                folder = isDir ?
+                    Path.Combine(destinationFolder, torrentPath.Split(Path.DirectorySeparatorChar).Last())
+                    : destinationFolder;
                 CopyDir(torrentPath, folder, hash);
                 return folder;
             }
@@ -105,25 +101,6 @@ namespace UtorrentPostProcess.Console
                 if (!Directory.Exists(subTarget)) Directory.CreateDirectory(subTarget);
                 File.Copy(Path.Combine(source, file.Name), Path.Combine(target, file.Name));
             }
-        }
-
-        private static IPlugin GetPlugin(string label)
-        {
-            var pluginInterface = typeof(IPlugin);
-            const string labelProperty = "Label";
-            foreach (var type in Assembly.GetExecutingAssembly().GetTypes())
-            {
-                if (pluginInterface.IsAssignableFrom(type) && type.IsClass && !type.IsAbstract)
-                {
-                    var instance = (IPlugin)Activator.CreateInstance(type);
-                    var instanceLabel = pluginInterface.GetProperty(labelProperty).GetValue(instance);
-                    if (instanceLabel.Equals(label))
-                    {
-                        return instance;
-                    }
-                }
-            }
-            return null;
         }
     }
 }
